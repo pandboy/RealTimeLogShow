@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>online log</title>
+	<link href="//cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap-theme.css" rel="stylesheet">
+	<link href="//cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" rel="stylesheet">
+	<script src="//cdn.bootcss.com/jquery/3.1.0/jquery.min.js"></script>
+	<script src="//cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.js"></script>
+
+</head>
+<body>
+<div class="container_fluid">
+	<div class="row">
+		<div class="col-sx-9">
+			<form class="form-horizontal">
+				<div class="form-group">
+					<label for="logPath" class="col-sx-2 control-label">实时日志路径</label>
+					<div class="col-xs-10">
+						<input placeholder="输入日志路径" name="logPath" id="logPath" class="form-control input-lg" value="/Data/software/tomcat/logs/catalina.out"/>
+					</div>
+				</div>
+				<div class="form-group">
+					<label for="filterName" class="col-ss-2 control-label">日志过滤</label>
+					<div class="col-xs-10">
+						<input type="text" class="form-control input-lg" id="filterName" name="filterName" placeholder="过滤单词">
+					</div>
+				</div>
+				<div class="form-group">
+					<label for="filterName" class="col-ss-2 control-label">生产发布服务器</label>
+					<div class="col-xs-10">
+						<input type="text" class="form-control input-lg" id="ip" name="ip" placeholder="输入ip地址">
+					</div>
+				</div>
+				<div class="form-group">
+					<label for="filterName" class="col-ss-2 control-label">生产发布密码</label>
+					<div class="col-xs-10">
+						<input type="password" class="form-control input-lg" id="password" name="password">
+					</div>
+				</div>
+				<div class="form-group">
+					<div class="col-sm-offset-2 col-xs-10">
+						<button type="button" class="btn btn-primary btn-lg" id="monitor">开始监控</button>
+						<button type="button" class="btn btn-success btn-lg" id="deployTest">测试部署</button>
+						<button type="button" class="btn btn-info btn-lg" id="deployProd">生产自动化部署</button>
+						<button type="button" class="btn btn-warning btn-lg" id="rollBackProd">生产回滚</button>			</div>
+				</div>
+			</form>
+		</div>
+	</div>
+	<div class="row">
+		<div id="log-container" style="height: 450px; overflow-y: scroll; background: #333; color: #aaa; padding: 10px;">
+			<div>
+			</div>
+		</div>
+	</div>
+</div>
+</body>
+<script>
+	var baseUrl = window.location.host;
+	var webSocketUrl = "ws://" + baseUrl + "/realTime";
+	var webSocket;
+	$(document).ready(function() {
+		if (window.WebSocket) {
+			webSocket = createSocket();
+			webSocket.onopen = function (evt) {
+				onOpen(evt)
+			};
+			webSocket.onclose = function (evt) {
+				onClose(evt)
+			};
+			webSocket.onmessage = function (evt) {
+				onMessage(evt)
+			};
+			webSocket.onerror = function (evt) {
+				onError(evt)
+			};
+
+			$('#monitor').click(function() {
+				var msg = $('#logPath').val();
+				sendMsg(msg);
+			});
+			$('#deployTest').click(function() {
+				deploy();
+			});$('#deployProd').click(function() {
+				var ip = $('#ip').val();
+				var password = $('#password').val();
+				var publishType = 1;
+				if(ip==null || ip.trim() == "" || password == null || password.trim() == "") {
+					alert("输入ip和密码");
+				} else {
+					prodPublish(ip, "", password, publishType, 3);
+				}
+			});$('#rollBackProd').click(function() {
+				var ip = $('#ip').val();
+				var password = $('#password').val();
+				var publishType = 0;
+				if(ip==null || ip.trim() == "" || password == null || password.trim() == "") {
+					alert("输入ip和密码");
+				} else {
+					prodPublish(ip, "", password, publishType, 5);
+				}
+			});
+		} else {
+			alert("你的浏览器不支持websocket，麻烦换一个");
+		}
+	});
+	function onOpen(evt) {
+		showMsg("Open Connect to server.");
+	}
+	function onClose(evt) {
+		showMsg("....Disconnected...");
+	}
+	function onMessage(evt) {
+		showMsg(evt.data);
+	}
+	function onError(evt) {
+		showMsg('Error occured: ' + evt.data);
+	}
+	function createSocket() {
+		return new WebSocket(webSocketUrl);
+	}
+
+	function sendMsg(msg) {
+		if (msg.length <1) {
+			alert("请输入路径");
+			return;
+		}
+		if (webSocket != null && webSocket.readyState == webSocket.CLOSED) {
+			webSocket = createSocket();
+		}
+		var data={};
+		data.msgType = 0;
+		data.content = msg;
+		webSocket.send(JSON.stringify(data));
+	}
+
+	function deploy() {
+		if (webSocket != null && webSocket.readyState == webSocket.CLOSED) {
+			webSocket = createSocket();
+		}
+		var data = {};
+		data.msgType = 1;
+		webSocket.send(JSON.stringify(data));
+
+	}
+
+	function prodPublish(ip, username, password, publishType, msgType) {
+		if (webSocket != null && webSocket.readyState == webSocket.CLOSED) {
+			webSocket = createSocket();
+		}
+		var data = {};
+		var dataContent = {};
+		data.msgType = msgType;
+		dataContent.ip = ip;
+		dataContent.publishType = publishType;
+		dataContent.password = password;
+		data.publishInfo = dataContent;
+		webSocket.send(JSON.stringify(data));
+	}
+
+	function showMsg(msg) {
+		$("#log-container div").append(msg);
+		// 滚动条滚动到最低部
+		$("#log-container").scrollTop($("#log-container div").height() - $("#log-container").height());
+	}
+</script>
