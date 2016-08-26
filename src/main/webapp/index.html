@@ -60,6 +60,7 @@
 	var baseUrl = window.location.host;
 	var webSocketUrl = "ws://" + baseUrl + "/realTime";
 	var webSocket;
+	var connected = false;
 	$(document).ready(function() {
 		if (window.WebSocket) {
 			webSocket = createSocket();
@@ -109,15 +110,18 @@
 		showMsg("Open Connect to server.");
 	}
 	function onClose(evt) {
+		connected = false;
 		showMsg("....Disconnected...");
 	}
 	function onMessage(evt) {
 		showMsg(evt.data);
 	}
 	function onError(evt) {
+		connected = false;
 		showMsg('Error occured: ' + evt.data);
 	}
 	function createSocket() {
+		connected = true;
 		return new WebSocket(webSocketUrl);
 	}
 
@@ -126,7 +130,7 @@
 			alert("请输入路径");
 			return;
 		}
-		if (webSocket != null && webSocket.readyState == webSocket.CLOSED) {
+		if (webSocket != null && connected) {
 			webSocket = createSocket();
 		}
 		var data={};
